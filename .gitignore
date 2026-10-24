@@ -1,0 +1,16 @@
+@"
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+!.env.example
+
+dataset/
+data/
+output.csv
+code.zip
+log.txt
+"@ | Set-Content -Path .gitignore
