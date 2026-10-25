@@ -8,7 +8,7 @@ A deletion workflow may report **Complete** while data still exists in databases
 
 For each request, the agent must first determine whether deletion was actually requested. It then returns `COMPLETE`, `INCOMPLETE`, or `NOT_APPLICABLE`, reports any remaining data or recreation risk, and produces the ordered remediation and verification steps required to finish an authorized deletion safely.
 
-Read [`problem_statement.md`](./problem_statement.md) for the complete challenge contract.
+Read [`problem_statement.md`](https://github.com/interviewstreet/hackerrank-orchestrate-october26/blob/main/problem_statement.md) for the complete challenge contract.
 
 ---
 
@@ -185,5 +185,7 @@ versioned code asset created through development-time visual review using OpenAI
 `gpt-5.6-sol`; token metering for that development work was unavailable. Runtime
 inference does not call a vision or language model. A new or changed screenshot is
 reported as unresolved rather than being guessed or silently skipped.
+
+
 
 
