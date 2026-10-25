@@ -6,6 +6,7 @@ import unittest
 
 from audit_agent.evidence_store import EvidenceStore
 from audit_agent.models import EvidenceManifestEntry
+from audit_agent.models import EvidenceNature, OperationStatus
 from audit_agent.parsers import parse_structured_evidence
 
 UTC = timezone.utc
@@ -51,6 +52,23 @@ class ParserTests(unittest.TestCase):
             self.assertEqual(items[0].resource.resource_id, "account_7")
             self.assertEqual(items[0].state, "PRESENT")
             self.assertEqual(len(EvidenceStore(items).by_email("person@example.test")), 1)
+
+    def test_multiline_log_correlates_context_and_distinguishes_operation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trace.log"
+            path.write_text(
+                "2026-01-01T10:00:00Z service=account_service trace_id=t1 event=lookup_started resource_id=account_7 email=person@example.test\n"
+                " request payload continued on the next physical line\n"
+                "2026-01-01T10:00:01Z service=account_service trace_id=t1 event=lookup_completed resource_id=account_7 result=FOUND status_code=200\n"
+                "2026-01-01T10:01:00Z service=account_service trace_id=t2 event=delete_started resource_id=account_7\n",
+                encoding="utf-8")
+            items = parse_structured_evidence(self._entry(path))
+            completed = next(item for item in items if item.attributes.get("event") == "lookup_completed")
+            delete = next(item for item in items if item.attributes.get("event") == "delete_started")
+            self.assertEqual(completed.nature, EvidenceNature.STATE_OBSERVATION)
+            self.assertIn("person@example.test", {i.normalized_value for i in completed.identifiers})
+            self.assertEqual((delete.nature, delete.operation_status),
+                             (EvidenceNature.OPERATION_EVENT, OperationStatus.PENDING))
 
 
 if __name__ == "__main__":

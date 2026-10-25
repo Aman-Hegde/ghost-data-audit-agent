@@ -1,4 +1,4 @@
-"""Phase 1 validation entry point. It deliberately does not create output.csv."""
+"""Phase 2 validation entry point. It deliberately does not create output.csv."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 from audit_agent.identity import IdentityGraph
-from audit_agent.ingestion import ingest_structured_evidence
+from audit_agent.ingestion import ingest_evidence
 from audit_agent.intent import IntentClassifier, MultilingualRuleAdjudicator
 from audit_agent.loaders import (
     load_activity, load_evidence_manifest, load_identities, load_identity_events,
@@ -17,7 +17,7 @@ from audit_agent.loaders import (
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate and index Ghost Data participant inputs (Phase 1)")
+    parser = argparse.ArgumentParser(description="Validate and index Ghost Data participant inputs (Phase 2)")
     parser.add_argument("--dataset", type=Path, default=Path(__file__).resolve().parents[1] / "dataset")
     parser.add_argument("--requests", default="deletion_requests.csv")
     args = parser.parse_args()
@@ -30,7 +30,7 @@ def main() -> int:
     activity = load_activity(dataset / "system_activity.csv")
     rules = load_policy_rules(dataset / "deletion_rules.csv")
     manifest = load_evidence_manifest(dataset / "evidence_files.csv", dataset)
-    ingestion = ingest_structured_evidence(manifest)
+    ingestion = ingest_evidence(manifest, identity_graph=graph)
     classifier = IntentClassifier(MultilingualRuleAdjudicator())
     intent_counts = Counter(classifier.classify(item.request_text).kind.value for item in requests)
     resolution_counts = Counter(
@@ -41,9 +41,12 @@ def main() -> int:
     print(json.dumps({
         "requests": len(requests), "identities": len(identities), "identity_events": len(events),
         "activity_events": len(activity), "policy_rules": len(rules), "manifest_files": len(manifest),
-        "structured_files_parsed": ingestion.parsed_files,
-        "unstructured_files_deferred": ingestion.skipped_unstructured_files,
-        "observations": ingestion.observations,
+        "evidence_files_parsed": ingestion.coverage.parsed_files,
+        "unresolved_evidence_files": ingestion.coverage.unresolved_files,
+        "parser_errors": ingestion.coverage.parser_errors,
+        "observations": ingestion.coverage.usable_observations,
+        "duplicate_observations": ingestion.coverage.duplicate_observations,
+        "model_calls": sum(item.calls for item in ingestion.coverage.model_usage),
         "intent_counts": dict(sorted(intent_counts.items())),
         "identity_resolution": dict(sorted(resolution_counts.items())),
     }, indent=2, sort_keys=True))

@@ -13,4 +13,5 @@ data/
 output.csv
 code.zip
 log.txt
-"@ | Set-Content -Path .gitignore
+"@ | Set-Content -Path .gitignore 
+code/evaluation/sample_predictions.csv

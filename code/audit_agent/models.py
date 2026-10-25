@@ -32,6 +32,64 @@ class TemporalSemantics(str, Enum):
     HISTORICAL_RECORD = "HISTORICAL_RECORD"
 
 
+class EvidenceNature(str, Enum):
+    STATE_OBSERVATION = "STATE_OBSERVATION"
+    OPERATION_EVENT = "OPERATION_EVENT"
+    HISTORICAL_FACT = "HISTORICAL_FACT"
+    NARRATIVE = "NARRATIVE"
+
+
+class OperationStatus(str, Enum):
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    ATTEMPTED = "ATTEMPTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    PENDING = "PENDING"
+    PARTIAL = "PARTIAL"
+
+
+class TimelineStatus(str, Enum):
+    RESOLVED = "RESOLVED"
+    CONTRADICTORY = "CONTRADICTORY"
+    UNRESOLVED = "UNRESOLVED"
+
+
+class PolicyAction(str, Enum):
+    DELETE = "DELETE"
+    REDACT = "REDACT"
+    ANONYMIZE = "ANONYMIZE"
+    RETAIN = "RETAIN"
+
+
+class ComplianceStatus(str, Enum):
+    COMPLIANT = "COMPLIANT"
+    VIOLATION = "VIOLATION"
+    UNRESOLVED = "UNRESOLVED"
+
+
+class RelationshipType(str, Enum):
+    """Evidence-grounded ways in which graph nodes can be related."""
+
+    STABLE_USER_ID = "STABLE_USER_ID"
+    HISTORICAL_IDENTITY = "HISTORICAL_IDENTITY"
+    EXPLICIT_IDENTITY_REFERENCE = "EXPLICIT_IDENTITY_REFERENCE"
+    FOREIGN_KEY = "FOREIGN_KEY"
+    PARENT_CHILD = "PARENT_CHILD"
+    SOURCE_TARGET_FLOW = "SOURCE_TARGET_FLOW"
+    BACKUP_REFERENCE = "BACKUP_REFERENCE"
+    OPERATION_READBACK = "OPERATION_READBACK"
+    PHYSICAL_REPLICA = "PHYSICAL_REPLICA"
+
+
+class RelationshipValidity(str, Enum):
+    """Whether a relationship is safe to use for prediction-time traversal."""
+
+    VALIDATED = "VALIDATED"
+    CORROBORATED = "CORROBORATED"
+    AMBIGUOUS = "AMBIGUOUS"
+    REJECTED = "REJECTED"
+
+
 @dataclass(frozen=True, slots=True)
 class Provenance:
     evidence_id: str
@@ -116,6 +174,16 @@ class PolicyRule:
 
 
 @dataclass(frozen=True, slots=True)
+class PolicyDecision:
+    rule_id: str
+    data_category: str
+    action: PolicyAction
+    terminal_state: str
+    condition: str
+    prohibited_identifier_kinds: tuple[IdentifierKind, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Identifier:
     kind: IdentifierKind
     raw_value: str
@@ -132,6 +200,29 @@ class Resource:
 
 
 @dataclass(frozen=True, slots=True)
+class ResourceRelationship:
+    """A temporal graph edge with participant-visible supporting provenance."""
+
+    source_id: str
+    target_id: str
+    relationship_type: RelationshipType
+    supporting_provenance: tuple[str, ...]
+    valid_from: datetime | None
+    valid_to: datetime | None
+    captured_at: datetime
+    confidence: float
+    validity: RelationshipValidity
+    rationale: str = ""
+
+    def applicable_at(self, instant: datetime) -> bool:
+        return (
+            self.captured_at <= instant
+            and (self.valid_from is None or self.valid_from <= instant)
+            and (self.valid_to is None or instant < self.valid_to)
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Observation:
     resource: Resource
     state: str
@@ -141,6 +232,9 @@ class Observation:
     attributes: Mapping[str, Any]
     provenance: Provenance
     temporal_semantics: TemporalSemantics = TemporalSemantics.POINT_IN_TIME
+    nature: EvidenceNature = EvidenceNature.STATE_OBSERVATION
+    correlation_id: str = ""
+    operation_status: OperationStatus = OperationStatus.NOT_APPLICABLE
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +266,113 @@ class ResourceHistory:
     latest_by_physical_system: Mapping[str, Observation]
     observations: tuple[Observation, ...]
     contradictory: bool
+
+
+@dataclass(frozen=True, slots=True)
+class TimelineAssessment:
+    resource_id: str
+    audit_at: datetime
+    status: TimelineStatus
+    best_state: str | None
+    latest_by_physical_system: Mapping[str, Observation]
+    state_observations: tuple[Observation, ...]
+    operation_events: tuple[Observation, ...]
+    conflicts: tuple[tuple[Observation, Observation], ...]
+    recreation_detected: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceAssessment:
+    resource: Resource
+    policy: PolicyDecision
+    compliance: ComplianceStatus
+    effective_state: str | None
+    evidence: Observation | None
+    observations: tuple[Observation, ...]
+    rationale: str
+
+
+@dataclass(frozen=True, slots=True)
+class AuditStep:
+    step_no: int
+    phase: str
+    system_id: str
+    resource_id: str
+    operation: str
+    state: str
+    evidence_id: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "step_no": self.step_no, "phase": self.phase, "system_id": self.system_id,
+            "resource_id": self.resource_id, "operation": self.operation,
+            "state": self.state, "evidence_id": self.evidence_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CasePrediction:
+    case_id: str
+    deletion_status: str
+    steps: tuple[AuditStep, ...]
+    unresolved_reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractionIssue:
+    evidence_id: str
+    code: str
+    message: str
+    severity: str = "WARNING"
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactExtraction:
+    evidence_id: str
+    status: str
+    observations: tuple[Observation, ...]
+    issues: tuple[ExtractionIssue, ...] = ()
+    content_sha256: str = ""
+    method: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ModelUsage:
+    provider: str
+    model: str
+    purpose: str
+    calls: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceCitation:
+    evidence_id: str
+    resource_id: str
+    audit_at: datetime
+    claimed_state: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationResult:
+    valid: bool
+    issues: tuple[ExtractionIssue, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceCoverage:
+    manifest_files: int
+    parsed_files: int
+    unresolved_files: int
+    parser_errors: int
+    observations_before_deduplication: int
+    usable_observations: int
+    duplicate_observations: int
+    unresolved_evidence_ids: tuple[str, ...]
+    issues: tuple[ExtractionIssue, ...]
+    model_usage: tuple[ModelUsage, ...]
 
 
 @dataclass(frozen=True, slots=True)

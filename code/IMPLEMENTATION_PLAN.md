@@ -410,3 +410,130 @@ Known Phase 1 limitations:
 - names are indexed for provenance but are not used alone to merge or resolve users;
 - intent vocabulary is deliberately conservative; texts outside documented high-precision rules remain `AMBIGUOUS` for later adjudication;
 - SQL is executed only in an in-memory database and rejects known unsafe statements, but the input is still assumed to be participant-provided challenge evidence rather than hostile arbitrary SQL.
+
+## 16. Phase 2 implementation status (completed 2026-10-24)
+
+Completed in the approved Phase 2 scope:
+
+- embedded-text extraction for all four PDFs, retaining file ID, page locator, identifiers, mentioned timestamps, and source/capture metadata; PDF claims are historical facts with `DOCUMENTED` state rather than authoritative live-database observations;
+- content-hash-cached structured extraction for all 11 PNG screenshots, PNG integrity checking, exact manifest provenance, identity-graph validation, and explicit unresolved behavior for cache misses or cross-user identifier conflicts;
+- correlation-aware log parsing that joins stable request context to related responses, preserves physical continuation lines, retains trace IDs, and separates state readbacks from attempted/successful/failed/pending/partial operations;
+- a `system_activity.csv` adapter that preserves original activity IDs and represents reported workflow results only as non-authoritative operation events;
+- a temporal assessment engine that separates state, operation, and historical evidence, tracks each physical store independently, detects peer-replica and equal-time contradictions, recognizes post-deletion recreation patterns, and does not backdate later current-state captures;
+- exact-observation deduplication without collapsing distinct states, physical copies, resource IDs, timestamps, or provenance;
+- provenance validation against manifest file IDs, activity IDs, and identity audit IDs, including source-path, resource-support, state-support, and cutoff checks;
+- full ingestion accounting for all 94 evidence artifacts: 94 parsed, zero unresolved, zero parser errors, and 3,872 usable evidence-derived observations;
+- 27 passing automated tests, including all six required Phase 2 synthetic scenarios, multimodal corpus integration, log correlation, activity semantics, cache conflict handling, deduplication, and hallucinated citation rejection;
+- a reproducible coverage-report generator and checked coverage report under `code/evaluation/`.
+
+Phase 2 dependencies are pinned to `pypdf==6.13.3` and `Pillow==12.2.0`. No runtime model calls were made. Screenshot interpretations are stored as exact-SHA-256 cache entries with development provenance (`OpenAI`, `gpt-5.6-sol`); token metering was unavailable and is reported as unavailable rather than estimated or invented.
+
+Still pending and explicitly outside Phase 2:
+
+- compilation and evaluation of deletion policies;
+- proof-sufficiency decisions that map reconstructed states to final case status;
+- remediation dependency planning and canonical output ordering;
+- public-sample predictions, full-dataset predictions, and root `output.csv` generation.
+
+Known Phase 2 limitations and open decisions:
+
+- the screenshot extractor intentionally has no automatic runtime vision fallback; a new or modified PNG becomes unresolved until reviewed and cached;
+- two visible screenshot emails do not occur in the identity graph and therefore remain unlinked warnings, not user associations;
+- PDF timestamps are retained as mentioned facts, but prose is not semantically promoted into live resource state;
+- later-captured historical documents may support an earlier event only under explicit retrospective reconstruction; the output citation validator remains strict and rejects evidence captured after `audit_at`, matching the official cutoff rule;
+- operation success is never absence proof; a separate eligible state readback is required in the future policy layer;
+- no completeness inference is made from an omitted snapshot row, because the current evidence formats do not expose a universally reliable completeness marker.
+
+## 17. Phase 3 implementation status (completed 2026-10-24)
+
+Completed in the approved Phase 3 scope:
+
+- a policy compiler driven exclusively by all 15 rows of `deletion_rules.csv`, with explicit action, terminal state, rule ID, condition, and prohibited-identifier metadata;
+- canonical resource category/system normalization for structured snapshots, readback logs, replicas, handover records, PDFs, screenshots, flows, backups, and tombstones;
+- semantic compliance checks for deletion, support/email redaction, analytics anonymization, retention, blocked restore access, disabled flows, and tombstones that retain only a stable subject reference;
+- identity-grounded resource discovery across user ID, current/historical email, hashes, and phone, with names deliberately excluded as sole join keys;
+- conservative complete-SQL-scope absence inference only for explicitly labeled point-in-time snapshots; partial snapshot omission remains non-evidence;
+- request lifecycle filtering that prevents stale unrelated resource operations from being attached to a deletion request;
+- deterministic findings, remediation, and verification planning using only contract operations/states, with data-flow and restore controls ordered before record changes;
+- one centralized ordering/numbering implementation and one compact UTF-8 CSV serializer;
+- output contract validation for row count, unique IDs, legal statuses, legal operation/state pairs, evidence requirements, cutoff-valid citations, canonical ordering, and consecutive numbering;
+- an explicit Phase 3 safety gate that prevents `code/generate.py` from writing root `output.csv` before approval;
+- isolated public-sample evaluation with a detailed per-case missing/extra/evidence/order report;
+- 34 passing automated tests after adding policy, tombstone, handover, zero-row readback, ordering, and serialization regressions;
+- an in-memory full-input readiness run producing 518 unique validated rows without writing a full output file.
+
+Public sample results after generic fixes:
+
+- status accuracy: 32/32 (100%);
+- step precision: 100%;
+- step recall: 85.49%;
+- step F1: 92.18%;
+- field accuracy: 74.91%;
+- exact sequence and exact row accuracy: 15/32 (46.88%);
+- no extra exact-signature steps, evidence-ID-only mismatches, or ordering-only mismatches remain.
+
+The remaining sample gap is conservative under-linking. Most missing steps concern compliant account/analytics records from which identifiers have already been removed, or future verification resources whose IDs do not appear in participant-visible identity-linked evidence. The implementation does not infer those links from sample labels, list position, or case-number conventions. A future phase may add a formally justified workflow-correlation model if an organizer clarification or reliable participant-visible correlation key becomes available.
+
+Full-input readiness validation produced 518 rows with 518 unique IDs in natural case order: 148 `COMPLETE`, 361 `INCOMPLETE`, and 9 `NOT_APPLICABLE`; eight cases retain explicit unresolved reasons. These are readiness diagnostics only, not a generated submission.
+
+Still pending and explicitly outside Phase 3:
+
+- user review/approval of sample evaluation tradeoffs;
+- any stronger correlation strategy for identifier-free compliant resources;
+- final root `output.csv`, final-run usage accounting, and `code.zip` packaging.
+
+## 18. Phase 4 implementation status (completed 2026-10-25)
+
+Completed in the approved Phase 4 scope:
+
+- added typed `ResourceRelationship` edges with source/target nodes, relationship type, participant-visible supporting provenance, validity interval, capture cutoff, confidence, validity class, and rationale;
+- built a deterministic relationship graph covering stable user IDs, historical identity audit references, explicit identity references, foreign keys, parent/child links, source/target flow references, backup/resource references, operation/readback correlations, and logical-to-physical replica lineage;
+- limited prediction traversal to `VALIDATED` and `CORROBORATED` edges that existed by `audit_at`; operation-only edges are `REJECTED`, correlation-only edges are `AMBIGUOUS`, and resources referring to multiple users are collision-downgraded;
+- integrated safe graph traversal into resource discovery while retaining the original exact-identifier path and state-evidence requirement;
+- made verification scope explicit: every discovered policy-governed resource is rechecked after remediation, including absent records, redacted/anonymized records, required retained records, disabled flows, and blocked restore paths; no resource is manufactured solely because a policy category normally exists;
+- extended provenance validation to every graph edge and verified that every supporting ID exists in the evidence manifest, system activity, or identity audit log and supports at least one endpoint;
+- classified all 28 missing public canonical steps in `code/evaluation/mismatch_analysis.md`: 20 are missing subject/resource associations and eight are genuinely unresolvable from participant-visible pre-cutoff evidence; no policy, evidence-ID-only, or ordering-only errors remain;
+- added eight relationship/identity/temporal safety scenarios plus one provenance validation scenario, covering all six requested regressions and explicit historical/foreign-key propagation;
+- added three independent, exact-output synthetic evaluation cases (complete, incomplete, and non-deletion), with ground truth isolated under `code/evaluation/fixtures/` and never imported by production code;
+- ran 44 automated tests successfully, compiled all Python modules, regenerated the public sample report, and completed a 518-request in-memory readiness run without creating root `output.csv`.
+
+Phase 4 relationship corpus results:
+
+- 10,061 total graph edges;
+- 5,799 `VALIDATED`, 261 `AMBIGUOUS`, and 4,001 `REJECTED` edges;
+- 923 stable-user, 248 historical-identity, 1,193 explicit-identity, 1 parent/child, 3 source/target-flow, 4,036 operation/readback, and 3,657 physical-replica edges;
+- zero graph provenance validation errors;
+- all 94 evidence files remain parsed, with 3,931 usable observations, zero unresolved evidence files, and zero parser errors.
+
+Public sample results after Phase 4:
+
+- status accuracy: 32/32 (100%); unchanged from Phase 3;
+- step precision: 100%; unchanged;
+- step recall: 85.49%; unchanged;
+- step F1: 92.18%; unchanged;
+- field accuracy: 74.91%; unchanged;
+- exact sequence and exact row accuracy: 15/32 (46.88%); unchanged;
+- 28 missing steps, zero extra steps, zero evidence-ID-only mismatches, and zero ordering-only mismatches.
+
+The unchanged public score is an intentional safety outcome, not an unexamined failure. None of the remaining canonical resources has a prediction-safe participant-visible relationship at the relevant cutoff. The tempting associations rely on workflow timing, list position, a later capture, or a resource ID visible only in the canonical output. Promoting those signals would violate the hidden-test generalization and identity-collision requirements and caused measurable false positives during a rejected development experiment.
+
+Still pending and explicitly outside Phase 4:
+
+- user approval of the remaining precision/recall tradeoff;
+- generation of the final root `output.csv`;
+- final-run token/usage accounting tied to that generated submission;
+- packaging and inspection of `code.zip`.
+
+## 19. Final submission build status (completed 2026-10-25)
+
+- reran all 44 automated tests and the three independent synthetic evaluations successfully;
+- regenerated the 32 public sample predictions with unchanged, explicitly sample-only metrics;
+- ran `python code/main.py` successfully from the repository root;
+- added an explicit `--final` write gate and generated root `output.csv` from all 518 evaluation requests;
+- independently reopened and validated all 518 unique naturally sorted rows, 2,639 ordered steps, 997 evidence-backed steps, legal operation/state pairs, evidence requirements, resource support, and audit cutoffs;
+- finalized the evaluation and usage reports with zero runtime model calls/tokens/cost and separately disclosed the 11-entry development-time screenshot cache whose token metering is unavailable;
+- documented the required exact-hash screenshot cache, deterministic runtime, and final generation/validation commands;
+- validated the append-only root transcript structure and scanned it for common credential patterns without changing or fabricating historical entries;
+- created and reopened `code.zip` with the required source, documentation, dependencies, interpretation instructions, reports, tests, and screenshot cache, excluding datasets, virtual environments, Python caches, generated sample predictions, nested archives, and secrets.
+
+Final output status distribution is 148 `COMPLETE`, 361 `INCOMPLETE`, and 9 `NOT_APPLICABLE`. The public sample remains 32/32 for status, 100% step precision, 85.49% recall, 92.18% F1, 74.91% field accuracy, and 15/32 exact sequences. These public metrics are not claims about hidden-test performance.

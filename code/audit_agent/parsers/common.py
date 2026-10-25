@@ -88,8 +88,20 @@ def observation_time(record: Mapping[str, Any], *, fallback: datetime, context: 
 
 def infer_state(record: Mapping[str, Any], category: str) -> str:
     result = str(record.get("result", "")).upper()
-    if record.get("status_code") == 404 or result in {"NOT_FOUND", "MISSING", "ABSENT"}:
+    status_code = record.get("status_code", record.get("http_status"))
+    try:
+        status_code = int(status_code) if status_code is not None else None
+    except (TypeError, ValueError):
+        status_code = None
+    rows = record.get("rows")
+    try:
+        rows = int(rows) if rows is not None else None
+    except (TypeError, ValueError):
+        rows = None
+    if status_code == 404 or rows == 0 or result in {"NOT_FOUND", "MISSING", "ABSENT", "MISS"}:
         return "ABSENT"
+    if rows is not None and rows > 0:
+        return "PRESENT"
     hits = record.get("hits")
     if isinstance(hits, Mapping) and isinstance(hits.get("total"), int):
         return "PRESENT" if hits["total"] > 0 else "ABSENT"
@@ -97,14 +109,27 @@ def infer_state(record: Mapping[str, Any], category: str) -> str:
         return "ACTIVE" if bool(record["enabled"]) else "DISABLED"
     if "restore_allowed" in record and isinstance(record["restore_allowed"], (bool, int)):
         return "ACTIVE" if bool(record["restore_allowed"]) else "BLOCKED"
+    if "eligible" in record and "deletion_block" in record:
+        eligible = record["eligible"] in (True, 1, "true", "True")
+        blocked = record["deletion_block"] in (True, 1, "true", "True")
+        return "ACTIVE" if eligible and not blocked else "BLOCKED"
     if "download_available" in record and isinstance(record["download_available"], (bool, int)):
         return "PRESENT" if bool(record["download_available"]) else "ABSENT"
-    if record.get("status_code") == 200 or result in {"FOUND", "PRESENT"}:
+    total_hits = record.get("total_hits")
+    try:
+        total_hits = int(total_hits) if total_hits is not None else None
+    except (TypeError, ValueError):
+        total_hits = None
+    if total_hits is not None:
+        return "PRESENT" if total_hits > 0 else "ABSENT"
+    if status_code == 200 or result in {"FOUND", "PRESENT", "HIT"}:
         return "PRESENT"
-    direct = [record.get(name) for name in ("name", "full_name", "email", "phone", "email_hash")]
-    if category == "ACCOUNT_TOMBSTONE" and direct and all(value in (None, "") for value in direct):
+    direct_keys = ("name", "full_name", "email", "phone", "email_hash")
+    direct = [record[name] for name in direct_keys if name in record]
+    empty = lambda value: value is None or (isinstance(value, str) and value.strip().casefold() in {"", "null", "none"})
+    if category == "ACCOUNT_TOMBSTONE" and direct and all(empty(value) for value in direct):
         return "REDACTED"
-    if category in {"ANALYTICS_PROFILE", "PRODUCT_TELEMETRY"} and direct and all(value in (None, "") for value in direct):
+    if category in {"ANALYTICS_PROFILE", "PRODUCT_TELEMETRY"} and direct and all(empty(value) for value in direct):
         return "ANONYMIZED"
     return result or "PRESENT"
 
