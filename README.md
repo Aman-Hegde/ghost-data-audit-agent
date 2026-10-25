@@ -1,4 +1,4 @@
-# HackerRank Orchestrate - October 2026
+﻿# HackerRank Orchestrate - October 2026
 
 ## Ghost Data Still Exists
 
@@ -144,7 +144,7 @@ When packaging `code.zip`:
 
 - Keep your evaluation reports in `code/evaluation/` so they are bundled automatically with `code` (or add `evaluation` to the archive command above if you placed them in a top-level `evaluation/` directory).
 - Do **not** include `dataset/`, virtual environments (`.venv`, `venv`, `node_modules`), or build caches (`__pycache__`). On Windows, keep `.venv` at the repository root (outside `code/`) and remove any `code/__pycache__` folders before running `Compress-Archive`.
-- Do **not** include nested archives (`.zip`, `.tar`, `.gz`, `.tgz`, `.7z`, `.rar`) inside `code.zip` — submissions containing nested archive files will be rejected.
+- Do **not** include nested archives (`.zip`, `.tar`, `.gz`, `.tgz`, `.7z`, `.rar`) inside `code.zip` â€” submissions containing nested archive files will be rejected.
 
 Before submitting, confirm that:
 
@@ -185,3 +185,5 @@ versioned code asset created through development-time visual review using OpenAI
 `gpt-5.6-sol`; token metering for that development work was unavailable. Runtime
 inference does not call a vision or language model. A new or changed screenshot is
 reported as unresolved rather than being guessed or silently skipped.
+
+
